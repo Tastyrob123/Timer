@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fokus-Timer · Tasty Studios · Dark</title>
+<style>
+  :root {
+    --bg:        #161619;  /* near-black, leicht kühl */
+    --ink:       #F2F1ED;  /* Off-White Schrift */
+    --ink-soft:  #8B8980;  /* gedämpft */
+    --line:      #2A2A30;  /* feine Linien */
+    --accent:    #7B7BEA;  /* Blauviolett, heller für Dark */
+    --accent-2:  #9A9AF5;
+    --surface:   #1F1F24;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                 "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 26px;
+  }
+
+  /* Presets */
+  .presets {
+    display: flex;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px;
+  }
+  .preset {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 7px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color .18s ease, background .18s ease;
+  }
+  .preset:hover { color: var(--ink); }
+  .preset.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  /* Ring */
+  .ring-wrap { position: relative; width: 240px; height: 240px; }
+  svg { transform: rotate(-90deg); display: block; }
+  .track  { stroke: var(--line); }
+  .progress {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    transition: stroke-dashoffset .35s linear, stroke .3s ease;
+  }
+
+  .display {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .time {
+    font-size: 52px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .phase {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* Controls */
+  .controls { display: flex; align-items: center; gap: 12px; }
+  button.ctrl {
+    font-family: inherit;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    transition: transform .12s ease, background .18s ease, border-color .18s ease;
+  }
+  button.ctrl:active { transform: scale(0.96); }
+
+  .start {
+    background: var(--ink);
+    color: #161619;
+    border-color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 13px 34px;
+    letter-spacing: 0.01em;
+  }
+  .start:hover { background: #fff; }
+
+  .reset {
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-soft);
+  }
+  .reset:hover { color: var(--ink); border-color: #3a3a42; }
+  .reset svg { transform: none; }
+
+  .footer {
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    opacity: .7;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="presets" id="presets">
+      <button class="preset active" data-focus="25" data-break="5">25 / 5</button>
+      <button class="preset" data-focus="50" data-break="10">50 / 10</button>
+      <button class="preset" data-focus="15" data-break="3">15 / 3</button>
+    </div>
+
+    <div class="ring-wrap">
+      <svg width="240" height="240" viewBox="0 0 240 240">
+        <circle class="track"    cx="120" cy="120" r="110" fill="none" stroke-width="8"/>
+        <circle class="progress" cx="120" cy="120" r="110" fill="none" stroke-width="8"
+                id="progress"/>
+      </svg>
+      <div class="display">
+        <div class="time"  id="time">25:00</div>
+        <div class="phase" id="phase">Fokus</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="ctrl start" id="startBtn">Start</button>
+      <button class="ctrl reset" id="resetBtn" title="Zurücksetzen">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7"/>
+          <path d="M3 4v4h4"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="footer">Tasty Studios · Fokus</div>
+  </div>
+
+<script>
+  const CIRC = 2 * Math.PI * 110;
+  const progress = document.getElementById('progress');
+  progress.style.strokeDasharray = CIRC;
+
+  const timeEl  = document.getElementById('time');
+  const phaseEl = document.getElementById('phase');
+  const startBtn= document.getElementById('startBtn');
+  const resetBtn= document.getElementById('resetBtn');
+  const presets = document.getElementById('presets');
+
+  let focusMin = 25, breakMin = 5;
+  let mode = 'focus';          // 'focus' | 'break'
+  let total = focusMin * 60;   // Sekunden in der aktuellen Phase
+  let left  = total;
+  let running = false;
+  let tick = null;
+
+  function fmt(s){
+    const m = String(Math.floor(s/60)).padStart(2,'0');
+    const r = String(s%60).padStart(2,'0');
+    return m + ':' + r;
+  }
+
+  function paint(){
+    timeEl.textContent = fmt(left);
+    phaseEl.textContent = mode === 'focus' ? 'Fokus' : 'Pause';
+    const frac = total === 0 ? 0 : left/total;
+    progress.style.strokeDashoffset = CIRC * (1 - frac);
+    progress.style.stroke = mode === 'focus'
+      ? getComputedStyle(document.documentElement).getPropertyValue('--accent')
+      : '#9A9AF5';
+  }
+
+  function setPhase(next){
+    mode = next;
+    total = (next === 'focus' ? focusMin : breakMin) * 60;
+    left = total;
+    paint();
+  }
+
+  function stop(){
+    running = false;
+    clearInterval(tick);
+    startBtn.textContent = left < total ? 'Weiter' : 'Start';
+  }
+
+  function start(){
+    if (running) { stop(); return; }
+    running = true;
+    startBtn.textContent = 'Pause';
+    tick = setInterval(() => {
+      left--;
+      if (left <= 0){
+        clearInterval(tick);
+        running = false;
+        setPhase(mode === 'focus' ? 'break' : 'focus');
+        startBtn.textContent = 'Start';
+        flash();
+        return;
+      }
+      paint();
+    }, 1000);
+  }
+
+  function reset(){
+    stop();
+    setPhase('focus');
+    startBtn.textContent = 'Start';
+  }
+
+  function flash(){
+    document.body.animate(
+      [{opacity:1},{opacity:.45},{opacity:1}],
+      {duration:600, iterations:2}
+    );
+  }
+
+  startBtn.addEventListener('click', start);
+  resetBtn.addEventListener('click', reset);
+
+  presets.addEventListener('click', e => {
+    const b = e.target.closest('.preset');
+    if (!b) return;
+    [...presets.children].forEach(c => c.classList.remove('active'));
+    b.classList.add('active');
+    focusMin = +b.dataset.focus;
+    breakMin = +b.dataset.break;
+    stop();
+    setPhase('focus');
+    startBtn.textContent = 'Start';
+  });
+
+  paint();
+</script>
+</body>
+</html>
