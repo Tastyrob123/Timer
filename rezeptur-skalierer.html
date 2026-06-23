@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rezeptur-Skalierer · Tasty Studios</title>
+<style>
+  :root {
+    --bg:        #F7F6F2;
+    --ink:       #1A1A1A;
+    --ink-soft:  #6E6C66;
+    --line:      #E7E5DF;
+    --accent:    #5B5BD6;
+    --surface:   #FFFFFF;
+    --field:     #FBFAF7;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                 "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 28px 20px;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 440px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .head { display: flex; flex-direction: column; gap: 4px; }
+  .title {
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  /* Yield-Steuerung */
+  .yield {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+  }
+  .yfield { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .yfield label {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .arrow {
+    padding-bottom: 12px;
+    color: var(--ink-soft);
+    font-size: 16px;
+  }
+  .factor {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    padding-bottom: 2px;
+    min-width: 64px;
+  }
+  .factor .val {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .factor .lbl {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  input {
+    font-family: inherit;
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--field);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 9px 11px;
+    font-size: 14px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(91,91,214,0.12);
+  }
+  input.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Zutaten */
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .list-head {
+    display: grid;
+    grid-template-columns: 1fr 64px 56px 84px 24px;
+    gap: 8px;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .list-head .r { text-align: right; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 64px 56px 84px 24px;
+    gap: 8px;
+    align-items: center;
+  }
+  .scaled {
+    text-align: right;
+    font-size: 14.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    padding-right: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .del {
+    border: none;
+    background: transparent;
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-size: 17px;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 8px;
+    transition: color .15s ease, background .15s ease;
+  }
+  .del:hover { color: #c0392b; background: rgba(192,57,43,0.08); }
+
+  .add {
+    align-self: flex-start;
+    border: 1px dashed var(--line);
+    background: transparent;
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .add:hover { color: var(--accent); border-color: var(--accent); }
+
+  .footer {
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    opacity: .7;
+    text-align: center;
+    padding-top: 4px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="head">
+      <div class="title">Rezeptur-Skalierer</div>
+      <div class="subtitle">Mengen automatisch auf den Ziel-Ertrag umrechnen</div>
+    </div>
+
+    <div class="yield">
+      <div class="yfield">
+        <label>Basis-Ertrag</label>
+        <input class="num" id="basis" type="number" min="0" step="any" value="4" />
+      </div>
+      <div class="arrow">→</div>
+      <div class="yfield">
+        <label>Ziel-Ertrag</label>
+        <input class="num" id="ziel" type="number" min="0" step="any" value="12" />
+      </div>
+      <div class="factor">
+        <span class="val" id="factor">3</span>
+        <span class="lbl">Faktor</span>
+      </div>
+    </div>
+
+    <div class="list">
+      <div class="list-head">
+        <span>Zutat</span>
+        <span class="r">Menge</span>
+        <span>Einheit</span>
+        <span class="r">Skaliert</span>
+        <span></span>
+      </div>
+      <div id="rows"></div>
+    </div>
+
+    <button class="add" id="addBtn">+ Zutat hinzufügen</button>
+
+    <div class="footer">Tasty Studios · Rezeptur</div>
+  </div>
+
+<script>
+  const startData = [
+    { name: 'Mehl Type 550', menge: 500, einheit: 'g'   },
+    { name: 'Zucker',        menge: 200, einheit: 'g'   },
+    { name: 'Eier',          menge: 4,   einheit: 'Stk' },
+    { name: 'Butter',        menge: 250, einheit: 'g'   },
+  ];
+
+  const rowsEl  = document.getElementById('rows');
+  const basisEl = document.getElementById('basis');
+  const zielEl  = document.getElementById('ziel');
+  const factorEl= document.getElementById('factor');
+  const addBtn  = document.getElementById('addBtn');
+
+  const nf = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 });
+
+  function factor(){
+    const b = parseFloat(basisEl.value);
+    const z = parseFloat(zielEl.value);
+    if (!b || b <= 0 || isNaN(z)) return null;
+    return z / b;
+  }
+
+  function recalc(){
+    const f = factor();
+    factorEl.textContent = f === null ? '–' : '×' + nf.format(f);
+    document.querySelectorAll('.row').forEach(row => {
+      const menge  = parseFloat(row.querySelector('.r-menge').value);
+      const unit   = row.querySelector('.r-einheit').value.trim();
+      const out    = row.querySelector('.scaled');
+      if (f === null || isNaN(menge)) { out.textContent = '–'; return; }
+      out.textContent = nf.format(menge * f) + (unit ? ' ' + unit : '');
+    });
+  }
+
+  function addRow(d = { name:'', menge:'', einheit:'' }){
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML =
+      '<input class="r-name" type="text" placeholder="z. B. Mehl" />' +
+      '<input class="r-menge num" type="number" min="0" step="any" placeholder="0" />' +
+      '<input class="r-einheit" type="text" placeholder="g" />' +
+      '<span class="scaled">–</span>' +
+      '<button class="del" title="Entfernen">&times;</button>';
+    row.querySelector('.r-name').value    = d.name;
+    row.querySelector('.r-menge').value   = d.menge;
+    row.querySelector('.r-einheit').value = d.einheit;
+    row.querySelector('.del').addEventListener('click', () => { row.remove(); recalc(); });
+    row.querySelectorAll('input').forEach(i => i.addEventListener('input', recalc));
+    rowsEl.appendChild(row);
+  }
+
+  basisEl.addEventListener('input', recalc);
+  zielEl.addEventListener('input', recalc);
+  addBtn.addEventListener('click', () => { addRow(); recalc(); });
+
+  startData.forEach(addRow);
+  recalc();
+</script>
+</body>
+</html>
